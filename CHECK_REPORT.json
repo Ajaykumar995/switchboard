@@ -1,0 +1,27 @@
+{
+  "profile": "full",
+  "startedAt": "2026-11-25T14:33:28.180Z",
+  "checks": [],
+  "score": 0,
+  "max": 75,
+  "levels": {
+    "1": {
+      "got": 0,
+      "max": 24
+    },
+    "2": {
+      "got": 0,
+      "max": 14
+    },
+    "3": {
+      "got": 0,
+      "max": 22
+    },
+    "5": {
+      "got": 0,
+      "max": 15
+    }
+  },
+  "error": "GET /__grader/snapshot returned 502",
+  "finishedAt": "2026-11-25T14:34:00.272Z"
+}

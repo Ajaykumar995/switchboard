@@ -62,21 +62,20 @@ async function processInboundEvent(workspace: string, data: any, eventId: string
     return; // Already processed, idempotent
   }
 
-  // Ensure conversation exists
+  // Ensure conversation exists - use findOneAndUpdate with $setOnInsert for createdAt only
   const convFilter = { workspace, contact };
-  await conversations.updateOne(
-    convFilter,
-    {
-      $setOnInsert: {
-        workspace,
-        contact,
-        assignee: null,
-        createdAt: new Date(),
-      },
-      $set: { updatedAt: new Date() },
-    },
-    { upsert: true }
-  );
+  const existingConv = await conversations.findOne(convFilter);
+  if (!existingConv) {
+    await conversations.insertOne({
+      workspace,
+      contact,
+      assignee: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+  // Update updatedAt
+  await conversations.updateOne(convFilter, { $set: { updatedAt: new Date() } });
 
   // Get conversation ID
   const conversation = await conversations.findOne(convFilter);

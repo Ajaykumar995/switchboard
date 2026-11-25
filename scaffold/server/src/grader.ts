@@ -115,18 +115,17 @@ export async function graderClaim(req: Request, res: Response): Promise<void> {
 
     // Atomic findOneAndUpdate to claim conversation
     // First ensure conversation exists
-    await conversations.updateOne(
-      { workspace, contact },
-      {
-        $setOnInsert: {
-          workspace,
-          contact,
-          assignee: null,
-          createdAt: new Date(),
-        },
-      },
-      { upsert: true }
-    );
+    const convFilter = { workspace, contact };
+    const existingConv = await conversations.findOne(convFilter);
+    if (!existingConv) {
+      await conversations.insertOne({
+        workspace,
+        contact,
+        assignee: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
 
     // Then atomically claim if unassigned or already ours
     const result = await conversations.findOneAndUpdate(
@@ -186,18 +185,17 @@ export async function graderReply(req: Request, res: Response): Promise<void> {
     }
 
     // Ensure conversation exists
-    await conversations.updateOne(
-      { workspace, contact },
-      {
-        $setOnInsert: {
-          workspace,
-          contact,
-          assignee: null,
-          createdAt: new Date(),
-        },
-      },
-      { upsert: true }
-    );
+    const convFilter = { workspace, contact };
+    const existingConv = await conversations.findOne(convFilter);
+    if (!existingConv) {
+      await conversations.insertOne({
+        workspace,
+        contact,
+        assignee: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
 
     // Atomically upsert outbound message by (workspace, client_ref)
     const result = await outbound.findOneAndUpdate(

@@ -1,0 +1,68 @@
+=== USER (18:14 IST) ===
+Uploaded: BRIEF.md, PIGEON.md, PAYBOX.md, BONUS_BILLING.md, REFERENCE.html, package.json, docker-compose.yml, .env.example, .gitignore
+"i want make throgh antigravity i need prompt"
+
+=== ASSISTANT (18:14 IST) ===
+Provided 3 structured prompts:
+1. Prompt 1 — Core Backend, Pigeon Webhooks, Outbound Worker & Level 1 Check:
+Read `BRIEF.md`, `PIGEON.md`, and `scaffold/server/src/*` in this repo. Build the Switchboard backend in `scaffold/server/` (keeping `switchboard.json` working) using Express, TypeScript, MongoDB, and Redis, reading ALL config from `config.ts` / environment variables (never hardcode `PORT`, URLs, or secrets).
+Implement:
+1. `GET /healthz` returning 200 once MongoDB and Redis are ready.
+2. `POST /webhooks/pigeon`: raw body HMAC-SHA256 verification (`x-pigeon-signature`, 401 on invalid/stale >300s, 400 on bad JSON, 200 on unknown type/workspace, deduplicate by event.id/message_id, order inbound by (occurred_at, message_id), never downgrade delivered/failed to sent).
+3. Grader endpoints (`x-grader-token === GRADER_TOKEN`): `POST /__grader/reset`, `GET /__grader/snapshot`, `POST /__grader/claim` (atomic findOneAndUpdate, 200/409), `POST /__grader/reply` (202 immediately, idempotent by client_ref).
+4. Outbound delivery worker: MongoDB lease acquisition (`lockedUntil` + `workerId`), Redis per-workspace rate limit & `Retry-After` cool-off, Pigeon `POST /v1/messages` with `Idempotency-Key: client_ref`, retry on timeout/503/429.
+Run `npm run check` until Level 1 passes.
+
+2. Prompt 2 — Login (OIDC PKCE), Tenant Isolation, WebSockets (Level 5) & React UI:
+- `GET /auth/login` (PKCE S256), `GET /auth/callback` (verify RS256 ID token via `/jwks`, Redis session + httpOnly cookie), `GET /api/me`, `GET /api/conversations?workspace=<id>` (401/403/200).
+- `GET /ws?workspace=<id>&after=<seq>` with cookie auth, Redis `INCR` monotonic `seq`, replay after N, Redis Pub/Sub across copies.
+- React UI in `scaffold/web/` (login, workspace switcher, conversation list, message thread, claim/reply, live WebSocket reconnect).
+Run `npm run check -- --levels 1,5`.
+
+3. Prompt 3 — Multi-Copy/Crash Verification, Tests & Submission Docs:
+- Run `npm run check:full` -> `CHECK_REPORT.json`.
+- Add unit/integration tests, `README.md`, half-page `DECISIONS.md`, verify `switchboard.json`.
+
+=== USER (18:19 IST) ===
+"C:\Users\pajay\Downloads\starter\starter
+C:\Users\pajay\Downloads\starter
+which one i need to attach"
+
+=== ASSISTANT (18:19 IST) ===
+"Open and attach the inner folder: C:\Users\pajay\Downloads\starter\starter"
+
+=== USER (18:20 IST) ===
+"approximately how much time take to complete"
+
+=== ASSISTANT (18:20 IST) ===
+Gave 90-minute pace plan: 6:20–6:50 Prompt 1, 6:50–7:20 Prompt 2, 7:20–7:45 Prompt 3 + check:full, 7:45–7:50 docs + ai-logs + push, 7:50–8:00 make repo public + submit. Advised skipping BONUS_BILLING.md and Elasticsearch unless extra time remains.
+
+=== USER (18:24 IST) ===
+"broo i pasted claude code is ok you saw yesterday 130 m tokes is there"
+
+=== ASSISTANT (18:24 IST) ===
+Confirmed 130M tokens is plenty for Claude Code; reminded to keep `npm run up` running, commit every 15 mins, and save transcripts to `ai-logs/`.
+
+=== USER (18:36–18:38 IST) ===
+Asked about running `starter` in Claude Code and `starter1` in Antigravity in parallel, and whether file/port conflicts happen.
+
+=== ASSISTANT (18:36–18:38 IST) ===
+Explained no file conflicts between separate folders, but running `npm run check` or servers simultaneously conflicts on port 4000, MongoDB, Redis, and Pigeon webhooks. Advised running one at a time and picking the winner fast.
+
+=== USER (18:39–19:01 IST) ===
+Shared Antigravity screenshot showing Prompt 1 tasks checked off and `Running level 1 check again 15m 39s`; asked how to speed up Claude/Antigravity with time running short.
+
+=== ASSISTANT (18:39–19:01 IST) ===
+Advised stopping the stuck check loop, freeing port 4000, committing current progress, and sending a time-boxed prompt to skip optional features, read `.check-logs/`, and fix only the failing contract requirement.
+
+=== USER (19:02–19:18 IST) ===
+Created `https://github.com/Ajaykumar995/switchboard`, asked how to push, how to make repo public, whether to move to Prompt 2 before Level 1 is 100%, and hit a `git push` rejected (`fetch first`) error.
+
+=== ASSISTANT (19:02–19:18 IST) ===
+Provided git init/remote/push commands, advised committing and moving to Prompt 2 to capture Level 5 + React UI points, advised `git push -u origin main --force` to overwrite the empty GitHub initial commit, and reminded to make repo public only at 7:50 PM.
+
+=== USER (19:22–19:55 IST) ===
+Asked how to export Claude Code (`/export`) and Gemini chat into the `ai-logs/` folder and push to GitHub.
+
+=== ASSISTANT (19:22–19:55 IST) ===
+Guided creating `ai-logs/`, running `/export` in Claude Code, saving Gemini chat to `ai-logs/ai-gemini.txt`, committing/pushing, making the repo public, and submitting the form before 8:00 PM IST.

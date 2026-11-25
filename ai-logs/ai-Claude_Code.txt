@@ -1,0 +1,63 @@
+# Claude Code Session Log — Switchboard Build Round (2026-11-25)
+
+## Prompt 1 — Core Backend, Pigeon Webhooks, Outbound Worker & Level 1 Check
+User:
+Read BRIEF.md, PIGEON.md, and scaffold/server/src/* in this repo. Build the Switchboard backend in scaffold/server/ (keeping switchboard.json working) using Express, TypeScript, MongoDB, and Redis, reading ALL config from config.ts / environment variables (never hardcode PORT, URLs, or secrets).
+
+Implement:
+1. GET /healthz returning 200 once MongoDB and Redis are ready.
+2. POST /webhooks/pigeon:
+- Capture raw request body bytes for HMAC-SHA256 verification of x-pigeon-signature (t=<unix>,v1=<hex> over <t>.<rawBody> using PIGEON_WEBHOOK_SECRET).
+- Return 401 (never 5xx) if signature is missing, malformed, invalid, or |now - t| > 300 seconds.
+- Return 400 (never 5xx) if signature is valid but body is invalid JSON.
+- Return 200 and ignore if event type or workspace is unknown.
+- Deduplicate by event.id and message_id in MongoDB so retries/duplicates are idempotent and never stored twice.
+- For message.inbound: store message and ensure conversation exists for (workspace, from). Snapshot/UI must order inbound messages by (occurred_at, message_id) ascending (oldest first).
+- For message.status: update outbound message status without ever downgrading delivered/failed back to sent if webhooks arrive out of order. Ignore status for unknown client_ref with 200.
+- Always respond 200 within 5 seconds only AFTER safely persisting to MongoDB.
+3. Grader endpoints (require x-grader-token === GRADER_TOKEN, else 401, sharing the same service layer as the UI):
+- POST /__grader/reset: clear all application data in MongoDB and Redis, return 200.
+- GET /__grader/snapshot: return { workspaces: { ws_acme: { contacts: { [phone]: { inbound: [message_ids oldest first], assignee } }, outbound: { [client_ref]: status } }, ws_globex: ... } }.
+- POST /__grader/claim { workspace, contact, agent }: atomic MongoDB findOneAndUpdate creating conversation if missing; return 200 if agent now holds it (or already held it), 409 if another agent holds it. Do not validate agent against IdP.
+- POST /__grader/reply { workspace, contact, text, client_ref }: validate workspace exists (400/404 if not), atomically upsert outbound message by (workspace, client_ref) with status queued (if already exists, do not duplicate), and return 202 immediately without waiting for Pigeon.
+4. Outbound delivery worker (must survive kill -9 and multi-instance runs):
+- Poll MongoDB for queued / leased-expired outbound messages using atomic lease acquisition (lockedUntil + workerId, e.g., 15s lease so another copy picks it up within 60s if a copy dies).
+- Enforce per-workspace rate limit AND Retry-After cool-off in Redis (shared across all server copies) so NO request is ever sent during a 429 cool-off window.
+- Call Pigeon POST /v1/messages with Authorization: Bearer <workspaceKey>, Idempotency-Key: <client_ref>, and { to, text, client_ref }. Handle timeouts (>10s), 503, and 429 by scheduling retry with backoff without duplicating sends.
+
+After implementing, stop any dev server on 4000 and run npm run check (Level 1) and fix any failures until Level 1 passes 100%.
+
+## Follow-up — Time Check
+User:
+Time check: I only have ~48 minutes left before 7:50 PM IST, and I still need to complete OIDC login, WebSockets, the React UI (Level 5), crash/multi-copy verification (Levels 2 & 3), and final submission docs.
+Keep everything minimal and direct—skip all optional/bonus features (no Paybox, no Elasticsearch, no encrypted notes). Run npm run check once; if anything fails, read .check-logs/ and fix ONLY the exact failing requirement so Level 1 passes immediately, then stop so I can give you the next prompt.
+
+## Prompt 2 — Login (OIDC PKCE), Tenant Isolation, WebSockets (Level 5) & React UI
+User:
+We only have 30 minutes left—implement this cleanly and minimally, then run npm run check -- --levels 1,5 once.
+Now add OIDC Login, Tenant Isolation, Real-time WebSockets (Level 5), and the React frontend in scaffold/web/:
+1. Auth & Sessions (scaffold/server/):
+- GET /auth/login: generate PKCE code_verifier + S256 code_challenge, store verifier + state in Redis (TTL 5m), redirect to ${OIDC_ISSUER}/authorize with client_id, redirect_uri, response_type=code, code_challenge, code_challenge_method=S256, state.
+- GET /auth/callback: exchange code at ${OIDC_ISSUER}/token, fetch public keys dynamically from ${OIDC_ISSUER}/jwks (never hardcode keys, handle key rotation on IdP restart) to verify id_token (RS256), create a session in Redis, and set an httpOnly session cookie.
+- GET /api/me: return 200 { sub, workspaces } with valid session, 401 without.
+- Workspace APIs (GET /api/conversations?workspace=<id>, messages, claim, reply, close/reopen): return 401 without session, 403 if user is not a member of workspace, 200 if member. Reuse the exact same service functions as /__grader/*.
+2. WebSockets (GET /ws?workspace=<id>&after=<seq>):
+- Attach ws server to the existing http.Server.
+- Authenticate upgrade using the session cookie and verify workspace membership; reject unauthorized/non-member upgrades.
+- Assign a strictly increasing integer seq per workspace (using Redis INCR) for every message.inbound, message.status, and conversation.assigned event, persist events (e.g. Redis list/sorted set or MongoDB) so ?after=N replays all missed events in order before streaming live events, and use Redis Pub/Sub so all server copies broadcast events to their connected WebSocket clients.
+3. React UI (scaffold/web/):
+- Build a clean, usable shared inbox: Sign in button, workspace switcher (for multi-workspace users like Eli), conversation list (newest activity first), conversation detail (messages oldest first, outbound status badges, claim/close/reopen buttons, reply input), and live WebSocket updates with automatic reconnect using ?after=<lastSeq>.
+Run npm run scaffold:install if you added packages, update switchboard.json if needed, and run npm run check -- --levels 1,5 until both Level 1 and Level 5 pass.
+
+## Follow-up — Speed Up & Final Check
+User:
+make fastt brooo
+Claude Code:
+Testing server startup on port 4001. Kill all node processes and run check (Stopped).
+
+User:
+Multi-Copy/Crash Verification, Tests & Submission Docs:
+- Run npm run check:full -> CHECK_REPORT.json.
+- Add unit/integration tests, README.md, half-page DECISIONS.md, verify switchboard.json.
+Claude Code:
+Ran 11 commands (1 stopped), read 5 files, 5 failed.

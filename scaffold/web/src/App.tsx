@@ -1,21 +1,60 @@
-import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './AuthContext';
+import { Login } from './Login';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import { ConversationList } from './ConversationList';
+import { ConversationDetail } from './ConversationDetail';
 
-// Placeholder. It only proves the browser can reach your server through the
-// Vite proxy. Replace it with the product.
-export function App() {
-  const [server, setServer] = useState('checking…');
+function PrivateRoutes() {
+  const { session, loading } = useAuth();
 
-  useEffect(() => {
-    fetch('/healthz')
-      .then((res) => (res.ok ? 'reachable' : `answered ${res.status}`))
-      .catch(() => 'not reachable (is it running on :4000?)')
-      .then(setServer);
-  }, []);
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
-    <main style={{ font: '16px system-ui', maxWidth: 560, margin: '80px auto' }}>
-      <h1>Switchboard</h1>
-      <p>Server: {server}</p>
-    </main>
+    <div style={styles.layout}>
+      <WorkspaceSwitcher />
+      <div style={styles.main}>
+        <Routes>
+          <Route path="/conversation" element={<ConversationDetail />} />
+          <Route path="/" element={<ConversationList />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
+
+export function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={<PrivateRoutes />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  layout: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+  },
+  main: {
+    flex: 1,
+    display: 'flex',
+    overflow: 'hidden',
+  },
+};
